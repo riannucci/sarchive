@@ -1,0 +1,59 @@
+// Copyright 2017 Robert Iannucci Jr. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto3";
+
+package toc;
+
+message CommonMode {
+  bool readonly = 1;
+}
+
+message PosixMode {
+  bool executable = 1;
+}
+
+message WinMode {
+  bool system = 1;
+  bool hidden = 2;
+}
+
+message File {
+  // the size of the File's data in the decompressed bytestream. The depth-first
+  // order of all Files in the TOC is the order of files in the archive_data
+  // section.
+  uint64 size = 1;
+
+  CommonMode common_mode = 2;
+
+  PosixMode posix_mode = 3;
+  WinMode win_mode = 4;
+}
+
+message SymLink {
+  repeated string target = 1;
+}
+
+message Entry {
+  string name = 1;
+  oneof etype {
+    File file = 2;
+    SymLink symlink = 3;
+    Tree tree = 4;
+  }
+}
+
+message Tree {
+  repeated Entry entries = 1;
+}
+
+message TOC {
+  // Set to true if this archive can safely be unpacked on a case insensitive
+  // filesystem.
+  bool case_safe = 1;
+
+  // root contains the file/link paths, metadata and data offsets in the solid
+  // archive body.
+  Tree root = 2;
+}
