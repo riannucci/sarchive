@@ -31,12 +31,11 @@
 // concatenated and compressed. The offsets and sizes in table_of_contents refer
 // to locations in the uncompressed archive_data stream.
 //
-// checksum indicates the type of checksum (SHA2-512 is the only supported
-// checksum at the time of writing), followed by the bytes of the checksum,
-// followed by the length of the checksum (as a single byte). The checksum
-// covers all bytes in the archive which preceed the checksum type inidicator.
-// The length at the end of the checksum allows the checksum to be validated
-// simply by reading from the end of the archive without parsing it.
+// checksum indicates the type of checksum, followed by the bytes of the
+// checksum, followed by the length of the checksum (as a single byte). The
+// checksum covers all bytes in the archive which preceed the checksum type
+// inidicator. The length at the end of the checksum allows the checksum to be
+// validated simply by reading from the end of the archive without parsing it.
 //
 // TODO(riannucci): implement better compression scheme like brotli or zstd...
 // this depends on better compression support becoming available in golang.
