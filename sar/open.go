@@ -6,6 +6,7 @@ package sar
 
 import (
 	"bytes"
+	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -34,13 +35,13 @@ type OpenedArchive struct {
 	opts openOptionData
 }
 
-// RawTOC returns the raw bytes for the compressed TOC block if CacheRawTOC was
+// RawTOC returns the raw bytes for the compressed TOC block if WithRawTOC was
 // provided.
 func (a *OpenedArchive) RawTOC() ([]byte, error) {
 	if a.rawTOCBuf != nil {
 		return a.rawTOCBuf.Bytes(), nil
 	}
-	return nil, errors.New("must supply CacheRawTOC to Open to use RawTOC")
+	return nil, errors.New("must supply WithRawTOC to Open to use RawTOC")
 }
 
 // Close closes the archive and the underlying reader. If UnpackTo hasn't been
@@ -51,8 +52,13 @@ func (a *OpenedArchive) Close() error {
 	}
 	a.didClose = true
 
-	if a.opts.earlyVerify {
+	if a.opts.verifyState == VerifyEarly {
 		// already verified the checksum, so just close a.r
+		return a.r.Close()
+	}
+
+	if a.opts.verifyState == VerifyNever {
+		// don't care!
 		return a.r.Close()
 	}
 
@@ -73,14 +79,37 @@ func (a *OpenedArchive) Close() error {
 	return a.r.Close()
 }
 
+// VerifyStateEnum allows you to control how Open will verify the package
+// integrity. It defaults to VerifyLate.
+type VerifyStateEnum int
+
+// Valid values of VerifyStateEnum
+const (
+	// Checksum verification will occur when calling OpenedArchive.Close()
+	VerifyLate VerifyStateEnum = iota
+
+	// Checksum verification will occur when calling Open()
+	VerifyEarly
+
+	// Checksum verification will be skipped.
+	VerifyNever
+)
+
 type openOptionData struct {
-	earlyVerify  bool
-	cacheRawTOC  bool
-	unpackBuffer int
+	verifyState      VerifyStateEnum
+	rawTOC           bool
+	unpackBufferSize int
 }
 
 func (o openOptionData) setUpReader(r readSeekCloser) (ret io.ReadCloser, err error) {
-	if o.earlyVerify {
+	switch o.verifyState {
+	case VerifyLate:
+		ret, _, err = sardata.ChecksumReader(r)
+
+	case VerifyNever:
+		ret = r
+
+	case VerifyEarly:
 		ret = io.ReadCloser(r)
 
 		var h hash.Hash
@@ -108,8 +137,10 @@ func (o openOptionData) setUpReader(r readSeekCloser) (ret io.ReadCloser, err er
 			err = errors.Annotate(err).Reason("early checksum reset").Err()
 			return
 		}
-	} else {
-		ret, _, err = sardata.ChecksumReader(r)
+
+	default:
+		panic(fmt.Sprintf("unknown verification state 0x%x", o.verifyState))
+
 	}
 	return
 }
@@ -117,29 +148,29 @@ func (o openOptionData) setUpReader(r readSeekCloser) (ret io.ReadCloser, err er
 // OpenOption functions can be supplied to the Open function
 type OpenOption func(*openOptionData)
 
-// EarlyVerify is an OpenOption which allows you to evaluate the checksum at the
-// time the archive is opened, as opposed to lazily.
-func EarlyVerify(val bool) OpenOption {
+// WithVerification allows you to dictate how the checksum in the archive is
+// verified.
+func WithVerification(val VerifyStateEnum) OpenOption {
 	return func(o *openOptionData) {
-		o.earlyVerify = val
+		o.verifyState = val
 	}
 }
 
-// CacheRawTOC is an OpenOption which instructs Open to duplicate the raw manifest
+// WithRawTOC is an OpenOption which instructs Open to duplicate the raw manifest
 // block. This can be useful for storing the manifest on disk next to the
 // unpacked Archive, for example.
-func CacheRawTOC(val bool) OpenOption {
+func WithRawTOC(val bool) OpenOption {
 	return func(o *openOptionData) {
-		o.cacheRawTOC = val
+		o.rawTOC = val
 	}
 }
 
-// UnpackBuffer is an OpenOption factory which indicates the number of bytes
+// WithUnpackBufferSize is an OpenOption factory which indicates the number of bytes
 // that UnpackTo will attempt to decompress ahead of time. Default if
 // unspecified is 16MB.
-func UnpackBuffer(factor int) OpenOption {
+func WithUnpackBufferSize(factor int) OpenOption {
 	return func(o *openOptionData) {
-		o.unpackBuffer = factor
+		o.unpackBufferSize = factor
 	}
 }
 
@@ -151,19 +182,9 @@ func UnpackBuffer(factor int) OpenOption {
 // To get a positive confirmation for the integrity of the archive, you must
 // call Close() and observe the error (or you can use EarlyVerify to get
 // a preemptive integrity check).
-//
-// Options:
-//   EarlyVerify - do all checksum validation up-front before any parsing
-//     occurs. Use this mode if you don't have some external checksum for data
-//     integrity.
-//   CacheRawTOC - grab a copy of the raw compressed TOC. Can be used to
-//     extract raw TOC to disk. TOC can be parsed with sardata.ReadTOC.
-//   UnpackBuffer - set the size of the read-ahead decompression buffer in
-//     bytes. Setting this to 0 will do an unbuffered (no readahead) unpack.
-//     Defaults to 16MB if unspecified.
 func Open(r readSeekCloser, options ...OpenOption) (ret *OpenedArchive, err error) {
 	opts := openOptionData{
-		unpackBuffer: 16 * 1024 * 1024, // 16MB
+		unpackBufferSize: 16 * 1024 * 1024, // 16MB
 	}
 	for _, o := range options {
 		o(&opts)
@@ -191,7 +212,7 @@ func Open(r readSeekCloser, options ...OpenOption) (ret *OpenedArchive, err erro
 	}
 
 	tocReader := io.Reader(openedReader)
-	if opts.cacheRawTOC {
+	if opts.rawTOC {
 		ar.rawTOCBuf = &bytes.Buffer{}
 		tocReader = io.TeeReader(openedReader, ar.rawTOCBuf)
 	}

@@ -92,19 +92,31 @@ func TestOpen(tst *testing.T) {
 			So(err, ShouldBeNil)
 			So(ar.TOC, ShouldResemble, mockTOC)
 			_, err = ar.RawTOC()
-			So(err, ShouldErrLike, "must supply CacheRawTOC to Open to use RawTOC")
+			So(err, ShouldErrLike, "must supply WithRawTOC to Open to use RawTOC")
 			So(ar.Close(), ShouldBeNil)
 		})
 
-		Convey("EarlyVerify", func() {
-			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, EarlyVerify(true))
+		Convey("VerifyEarly", func() {
+			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, WithVerification(VerifyEarly))
+			So(err, ShouldBeNil)
+			So(ar.TOC, ShouldResemble, mockTOC)
+			So(ar.Close(), ShouldBeNil)
+		})
+
+		Convey("VerifyNever", func() {
+			newBytes := make([]byte, mockArchive.Len())
+			copy(newBytes, mockArchive.Bytes())
+			newBytes[len(newBytes)-10] = 0  // break the checksum
+			newBytes[len(newBytes)-1] = 100 // break the 'seekback' value
+
+			ar, err := Open(nullReadSeekCloser{bytes.NewReader(newBytes)}, WithVerification(VerifyNever))
 			So(err, ShouldBeNil)
 			So(ar.TOC, ShouldResemble, mockTOC)
 			So(ar.Close(), ShouldBeNil)
 		})
 
 		Convey("CacheRawTOC", func() {
-			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, CacheRawTOC(true))
+			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, WithRawTOC(true))
 			So(err, ShouldBeNil)
 			So(ar.TOC, ShouldResemble, mockTOC)
 			data, err := ar.RawTOC()

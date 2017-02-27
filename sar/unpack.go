@@ -103,10 +103,10 @@ func ensureFile(syncBuf []byte, wg *sync.WaitGroup, ech chan<- error, abs, rel s
 func (a *OpenedArchive) prepReader() (io.Reader, io.Closer, error) {
 	dataReader := io.Reader(a.r)
 	checksumCloser := io.Closer(a.r)
-	if a.opts.unpackBuffer > 0 {
+	if a.opts.unpackBufferSize > 0 {
 		rd, wr := io.Pipe()
 		go func(r io.Reader) {
-			_, err := bufio.NewReaderSize(r, a.opts.unpackBuffer).WriteTo(wr)
+			_, err := bufio.NewReaderSize(r, a.opts.unpackBufferSize).WriteTo(wr)
 			wr.CloseWithError(err)
 		}(dataReader)
 		dataReader = rd
