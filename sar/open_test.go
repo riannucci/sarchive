@@ -97,14 +97,14 @@ func TestOpen(tst *testing.T) {
 		})
 
 		Convey("EarlyVerify", func() {
-			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, EarlyVerify)
+			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, EarlyVerify(true))
 			So(err, ShouldBeNil)
 			So(ar.TOC, ShouldResemble, mockTOC)
 			So(ar.Close(), ShouldBeNil)
 		})
 
 		Convey("CacheRawTOC", func() {
-			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, CacheRawTOC)
+			ar, err := Open(nullReadSeekCloser{bytes.NewReader(mockArchive.Bytes())}, CacheRawTOC(true))
 			So(err, ShouldBeNil)
 			So(ar.TOC, ShouldResemble, mockTOC)
 			data, err := ar.RawTOC()

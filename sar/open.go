@@ -119,15 +119,19 @@ type OpenOption func(*openOptionData)
 
 // EarlyVerify is an OpenOption which allows you to evaluate the checksum at the
 // time the archive is opened, as opposed to lazily.
-func EarlyVerify(o *openOptionData) {
-	o.earlyVerify = true
+func EarlyVerify(val bool) OpenOption {
+	return func(o *openOptionData) {
+		o.earlyVerify = val
+	}
 }
 
 // CacheRawTOC is an OpenOption which instructs Open to duplicate the raw manifest
 // block. This can be useful for storing the manifest on disk next to the
 // unpacked Archive, for example.
-func CacheRawTOC(o *openOptionData) {
-	o.cacheRawTOC = true
+func CacheRawTOC(val bool) OpenOption {
+	return func(o *openOptionData) {
+		o.cacheRawTOC = val
+	}
 }
 
 // UnpackBuffer is an OpenOption factory which indicates the number of bytes
