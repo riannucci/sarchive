@@ -10,7 +10,7 @@ go:
 before_install:
   - curl -L https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-linux-x86_64.zip -o /tmp/protoc.zip
   - mkdir /tmp/protoc
-  - cd /tmp/protoc && unzip ../protoc.zip
+  - (cd /tmp/protoc && unzip ../protoc.zip)
   - export PATH=$PATH:/tmp/protoc/bin
   - go get github.com/golang/protobuf/protoc-gen-go
   - go get github.com/maruel/pre-commit-go/cmd/pcg
